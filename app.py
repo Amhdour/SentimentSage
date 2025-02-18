@@ -8,6 +8,7 @@ from sample_data import get_sample_data
 from openai_analyzer import analyze_sentiment_openai
 from nlp_analyzer import get_nlp_analysis
 from data_sources import load_data_source, load_from_urls
+from ml_predictor import get_trend_analysis
 
 # Page configuration
 st.set_page_config(
@@ -239,6 +240,64 @@ fig_gauge = go.Figure(go.Indicator(
     }
 ))
 st.plotly_chart(fig_gauge, use_container_width=True)
+
+# Add Trend Analysis Section
+st.header("📈 Trend Analysis")
+if len(df) >= 10:  # Only show predictions if we have enough data
+    with st.spinner("Analyzing sentiment trends..."):
+        trend_results = get_trend_analysis(df)
+
+        if trend_results['error']:
+            st.error(trend_results['error'])
+        else:
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.subheader("Predicted Sentiment Trend")
+                predictions = trend_results['predictions']
+
+                # Plot historical and predicted sentiment
+                fig_trend = go.Figure()
+
+                # Historical data
+                fig_trend.add_trace(go.Scatter(
+                    x=df['timestamp'],
+                    y=df['polarity'],
+                    name='Historical',
+                    line=dict(color='#1f77b4')
+                ))
+
+                # Predicted data
+                fig_trend.add_trace(go.Scatter(
+                    x=predictions['timestamp'],
+                    y=predictions['predicted_sentiment'],
+                    name='Predicted',
+                    line=dict(color='#ff7f0e', dash='dash')
+                ))
+
+                fig_trend.update_layout(
+                    title="Sentiment Trend and Prediction",
+                    xaxis_title="Time",
+                    yaxis_title="Sentiment Score"
+                )
+                st.plotly_chart(fig_trend, use_container_width=True)
+
+            with col2:
+                st.subheader("Model Performance")
+                performance = trend_results['model_performance']
+                st.metric("Model Confidence", f"{performance['confidence']:.2%}")
+                st.metric("Training Score", f"{performance['train_score']:.2%}")
+                st.metric("Test Score", f"{performance['test_score']:.2%}")
+
+                st.info("""
+                    The prediction model uses historical sentiment patterns,
+                    time-based features, and rolling statistics to forecast
+                    future sentiment trends. Higher confidence scores indicate
+                    more reliable predictions.
+                """)
+else:
+    st.info("Need at least 10 data points for trend prediction. Add more data to see predictions.")
+
 
 # Historical Data Table
 st.header("📊 Historical Data")
