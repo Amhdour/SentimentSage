@@ -6,6 +6,7 @@ from textblob import TextBlob
 from utils import preprocess_text, calculate_reputation_score
 from sample_data import get_sample_data
 from openai_analyzer import analyze_sentiment_openai
+from nlp_analyzer import get_nlp_analysis
 
 # Page configuration
 st.set_page_config(
@@ -18,7 +19,7 @@ st.set_page_config(
 st.title("📊 Sentiment Analysis & Reputation Management Dashboard")
 st.markdown("""
     This dashboard provides real-time sentiment analysis and reputation management insights 
-    from text data. Upload your own data or explore our sample dataset.
+    from text data, including advanced NLP features like entity recognition and topic modeling.
 """)
 
 # Sidebar
@@ -66,13 +67,17 @@ with col2:
     st.plotly_chart(fig_scores, use_container_width=True)
 
 # Real-time Analysis Section
-st.header("🔄 Real-time Sentiment Analysis")
+st.header("🔄 Real-time Text Analysis")
 st.markdown("""
-    Enter text below to analyze sentiment in real-time. The analysis uses TextBlob for basic sentiment analysis,
-    and when available, OpenAI's advanced AI model for more nuanced insights.
+    Enter text below for comprehensive analysis including:
+    - Basic sentiment analysis using TextBlob
+    - Advanced sentiment analysis with OpenAI (when available)
+    - Named Entity Recognition
+    - Topic Modeling
+    - Key Phrase Extraction
 """)
 
-# Text input for real-time analysis
+# Text input for analysis
 user_text = st.text_area("Enter text to analyze:", height=150)
 
 if user_text:
@@ -80,41 +85,84 @@ if user_text:
     processed_text = preprocess_text(user_text)
     blob = TextBlob(processed_text)
 
-    # Try OpenAI analysis
-    try:
-        openai_result = analyze_sentiment_openai(user_text)
-        # If OpenAI analysis succeeds, show both analyses side by side
-        col1, col2 = st.columns(2)
+    # Create tabs for different analyses
+    sentiment_tab, entities_tab, topics_tab = st.tabs([
+        "Sentiment Analysis",
+        "Named Entities",
+        "Topics & Phrases"
+    ])
 
-        with col1:
+    # Sentiment Analysis Tab
+    with sentiment_tab:
+        try:
+            openai_result = analyze_sentiment_openai(user_text)
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.subheader("TextBlob Analysis")
+                st.metric("Polarity", f"{blob.sentiment.polarity:.2f}")
+                st.metric("Subjectivity", f"{blob.sentiment.subjectivity:.2f}")
+                sentiment = "Positive" if blob.sentiment.polarity > 0 else "Negative" if blob.sentiment.polarity < 0 else "Neutral"
+                st.metric("Sentiment", sentiment)
+
+            with col2:
+                st.subheader("OpenAI Advanced Analysis")
+                st.metric("Sentiment", openai_result['sentiment'])
+                st.metric("Confidence", f"{openai_result['confidence']:.2f}")
+                st.metric("Emotional Tone", openai_result['emotional_tone'])
+
+                st.write("Key Sentiment Drivers:")
+                for driver in openai_result['key_drivers']:
+                    st.write(f"• {driver}")
+
+        except Exception as e:
+            st.warning(f"Advanced AI analysis unavailable: {str(e)}")
             st.subheader("TextBlob Analysis")
             st.metric("Polarity", f"{blob.sentiment.polarity:.2f}")
             st.metric("Subjectivity", f"{blob.sentiment.subjectivity:.2f}")
             sentiment = "Positive" if blob.sentiment.polarity > 0 else "Negative" if blob.sentiment.polarity < 0 else "Neutral"
             st.metric("Sentiment", sentiment)
 
+    # Get advanced NLP analysis
+    nlp_results = get_nlp_analysis(user_text)
+
+    # Entities Tab
+    with entities_tab:
+        st.subheader("Named Entity Recognition")
+
+        if nlp_results['entities']:
+            for entity_type, entities in nlp_results['entities'].items():
+                st.write(f"**{entity_type}**")
+                for entity in entities:
+                    st.write(f"• {entity['text']} (mentioned {entity['count']} times)")
+        else:
+            st.info("No named entities found in the text.")
+
+    # Topics and Phrases Tab
+    with topics_tab:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Key Phrases")
+            phrases = nlp_results.get('key_phrases', [])
+            if phrases:
+                for phrase in phrases:
+                    st.write(f"• {phrase['text']} ({phrase['type']})")
+            else:
+                st.info("No key phrases identified.")
+
         with col2:
-            st.subheader("OpenAI Advanced Analysis")
-            st.metric("Sentiment", openai_result['sentiment'])
-            st.metric("Confidence", f"{openai_result['confidence']:.2f}")
-            st.metric("Emotional Tone", openai_result['emotional_tone'])
-
-            st.write("Key Sentiment Drivers:")
-            for driver in openai_result['key_drivers']:
-                st.write(f"• {driver}")
-
-    except Exception as e:
-        # If OpenAI analysis fails, show only TextBlob analysis with a notification
-        st.warning(f"Advanced AI analysis unavailable: {str(e)}")
-
-        st.subheader("TextBlob Analysis")
-        st.metric("Polarity", f"{blob.sentiment.polarity:.2f}")
-        st.metric("Subjectivity", f"{blob.sentiment.subjectivity:.2f}")
-        sentiment = "Positive" if blob.sentiment.polarity > 0 else "Negative" if blob.sentiment.polarity < 0 else "Neutral"
-        st.metric("Sentiment", sentiment)
+            st.subheader("Topic Analysis")
+            if 'topics' in nlp_results:
+                for topic in nlp_results['topics']:
+                    st.write(f"**Topic {topic['id'] + 1}**")
+                    for word_info in topic['words']:
+                        st.write(f"• {word_info['word']} ({word_info['weight']:.3f})")
+            else:
+                st.info("Text is too short for topic modeling. Please provide a longer text.")
 
 # Reputation Score
-st.subheader("Reputation Score")
+st.header("📈 Reputation Analysis")
 reputation_score = calculate_reputation_score(df)
 fig_gauge = go.Figure(go.Indicator(
     mode="gauge+number",
@@ -138,4 +186,4 @@ st.dataframe(df.head(10), use_container_width=True)
 
 # Footer
 st.markdown("---")
-st.markdown("Dashboard created with Streamlit, TextBlob, and OpenAI")
+st.markdown("Dashboard created with Streamlit, TextBlob, OpenAI, and spaCy")
