@@ -7,7 +7,7 @@ from utils import preprocess_text, calculate_reputation_score
 from sample_data import get_sample_data
 from openai_analyzer import analyze_sentiment_openai
 from nlp_analyzer import get_nlp_analysis
-from data_sources import load_data_source
+from data_sources import load_data_source, load_from_urls
 
 # Page configuration
 st.set_page_config(
@@ -20,24 +20,48 @@ st.set_page_config(
 st.title("📊 Sentiment Analysis & Reputation Management Dashboard")
 st.markdown("""
     This dashboard provides real-time sentiment analysis and reputation management insights 
-    from text data, including advanced NLP features like entity recognition and topic modeling.
+    from various data sources, including files, JSON input, and web content.
 """)
 
 # Sidebar
 st.sidebar.header("Dashboard Controls")
 data_source = st.sidebar.radio(
     "Select Data Source",
-    ["Sample Data", "Upload Your Own", "JSON Input"]
+    ["Sample Data", "Upload File", "JSON Input", "Web URLs"]
 )
 
 # Data loading
 if data_source == "Sample Data":
     df = get_sample_data()
+elif data_source == "Web URLs":
+    urls_input = st.sidebar.text_area(
+        "Enter URLs (one per line)",
+        height=150,
+        help="Enter website URLs to analyze their content. Each URL should be on a new line."
+    )
+
+    if urls_input:
+        urls = [url.strip() for url in urls_input.split('\n') if url.strip()]
+        if urls:
+            with st.spinner('Fetching content from URLs...'):
+                df, error = load_from_urls(urls)
+                if error:
+                    st.sidebar.error(error)
+                    st.stop()
+        else:
+            st.info("Please enter valid URLs or select another data source")
+            st.stop()
+    else:
+        st.info("Please enter URLs or select another data source")
+        st.stop()
 elif data_source == "JSON Input":
     json_text = st.sidebar.text_area(
         "Enter JSON data",
         height=200,
-        help="Enter JSON data in the format: [{\"text\": \"your text here\", ...}, ...]"
+        help="""Enter JSON data in the format:
+        [{\"text\": \"your text here\"}, ...]
+        or
+        {\"data\": [{\"text\": \"your text here\"}, ...]}"""
     )
     if json_text:
         try:
@@ -53,7 +77,7 @@ elif data_source == "JSON Input":
     else:
         st.info("Please enter JSON data or select another data source")
         st.stop()
-else:
+else:  # Upload File
     uploaded_file = st.sidebar.file_uploader(
         "Upload data file", 
         type=['csv', 'xlsx', 'xls', 'json'],
@@ -62,17 +86,18 @@ else:
 
     if uploaded_file is not None:
         file_type = uploaded_file.name.split('.')[-1]
-        df, error = load_data_source(uploaded_file, file_type)
+        with st.spinner('Processing uploaded file...'):
+            df, error = load_data_source(uploaded_file, file_type)
 
-        if error:
-            st.sidebar.error(error)
-            st.stop()
+            if error:
+                st.sidebar.error(error)
+                st.stop()
 
-        # Display data preview
-        st.sidebar.subheader("Data Preview")
-        st.sidebar.dataframe(df.head(3), use_container_width=True)
+            # Display data preview
+            st.sidebar.subheader("Data Preview")
+            st.sidebar.dataframe(df.head(3), use_container_width=True)
     else:
-        st.info("Please upload a file or select Sample Data")
+        st.info("Please upload a file or select another data source")
         st.stop()
 
 # Main dashboard
