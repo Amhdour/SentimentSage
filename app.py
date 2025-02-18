@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from textblob import TextBlob
-import json
 from utils import preprocess_text, calculate_reputation_score
 from sample_data import get_sample_data
 from openai_analyzer import analyze_sentiment_openai
@@ -77,7 +76,7 @@ st.markdown("""
 user_text = st.text_area("Enter text to analyze:", height=150)
 
 if user_text:
-    # Create three columns for analysis results
+    # Create two columns for analysis results
     col1, col2 = st.columns(2)
 
     # TextBlob Analysis
@@ -95,15 +94,18 @@ if user_text:
     with col2:
         st.subheader("OpenAI Advanced Analysis")
         with st.spinner("Analyzing sentiment with AI..."):
-            openai_result = json.loads(analyze_sentiment_openai(user_text))
+            try:
+                openai_result = analyze_sentiment_openai(user_text)
 
-            st.metric("Sentiment", openai_result['sentiment'])
-            st.metric("Confidence", f"{openai_result['confidence']:.2f}")
-            st.metric("Emotional Tone", openai_result['emotional_tone'])
+                st.metric("Sentiment", openai_result['sentiment'])
+                st.metric("Confidence", f"{openai_result['confidence']:.2f}")
+                st.metric("Emotional Tone", openai_result['emotional_tone'])
 
-            st.write("Key Sentiment Drivers:")
-            for driver in openai_result['key_drivers']:
-                st.write(f"• {driver}")
+                st.write("Key Sentiment Drivers:")
+                for driver in openai_result['key_drivers']:
+                    st.write(f"• {driver}")
+            except Exception as e:
+                st.error(f"Error in AI analysis: {str(e)}")
 
 # Reputation Score
 st.subheader("Reputation Score")
@@ -123,7 +125,6 @@ fig_gauge = go.Figure(go.Indicator(
     }
 ))
 st.plotly_chart(fig_gauge, use_container_width=True)
-
 
 # Historical Data Table
 st.header("📊 Historical Data")

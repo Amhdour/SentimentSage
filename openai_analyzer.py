@@ -1,4 +1,5 @@
 import os
+import json
 from openai import OpenAI
 
 # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
@@ -30,7 +31,10 @@ def analyze_sentiment_openai(text):
             ],
             response_format={"type": "json_object"}
         )
-        return response.choices[0].message.content
+        
+        # Parse the response JSON string into a dictionary
+        result = response.choices[0].message.content
+        return json.loads(result)
     except Exception as e:
         return {
             "sentiment": "neutral",
