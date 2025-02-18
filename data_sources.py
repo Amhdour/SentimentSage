@@ -6,12 +6,27 @@ from web_scraper import process_urls
 
 def validate_data(df: pd.DataFrame) -> tuple[bool, str]:
     """
-    Validate the uploaded data format.
+    Validate the uploaded data format and transform business data if needed.
     Returns (is_valid, error_message).
     """
     # Check for empty dataframe
     if df.empty:
         return False, "The uploaded file contains no data"
+
+    # If we have business data format, transform it
+    business_columns = ['name', 'description', 'rating', 'numberOfReviews']
+    if all(col in df.columns for col in ['name', 'description']):
+        # Combine name and description into text field
+        df['text'] = df.apply(lambda row: f"{row['name']}: {row['description']}", axis=1)
+
+        # Add metadata prefix if available
+        if 'rating' in df.columns and 'numberOfReviews' in df.columns:
+            df['text'] = df.apply(
+                lambda row: f"Rating: {row['rating']}/5 ({row['numberOfReviews']} reviews)\n{row['text']}", 
+                axis=1
+            )
+
+        return True, ""
 
     # Check if text column exists
     if 'text' not in df.columns:
