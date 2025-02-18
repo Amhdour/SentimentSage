@@ -68,44 +68,50 @@ with col2:
 # Real-time Analysis Section
 st.header("🔄 Real-time Sentiment Analysis")
 st.markdown("""
-    Enter text below to analyze sentiment in real-time using both TextBlob and OpenAI's advanced AI model.
-    Compare the results to see how different models interpret the sentiment.
+    Enter text below to analyze sentiment in real-time. The analysis uses TextBlob for basic sentiment analysis,
+    and when available, OpenAI's advanced AI model for more nuanced insights.
 """)
 
 # Text input for real-time analysis
 user_text = st.text_area("Enter text to analyze:", height=150)
 
 if user_text:
-    # Create two columns for analysis results
-    col1, col2 = st.columns(2)
-
     # TextBlob Analysis
-    with col1:
-        st.subheader("TextBlob Analysis")
-        processed_text = preprocess_text(user_text)
-        blob = TextBlob(processed_text)
+    processed_text = preprocess_text(user_text)
+    blob = TextBlob(processed_text)
 
+    # Try OpenAI analysis
+    try:
+        openai_result = analyze_sentiment_openai(user_text)
+        # If OpenAI analysis succeeds, show both analyses side by side
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("TextBlob Analysis")
+            st.metric("Polarity", f"{blob.sentiment.polarity:.2f}")
+            st.metric("Subjectivity", f"{blob.sentiment.subjectivity:.2f}")
+            sentiment = "Positive" if blob.sentiment.polarity > 0 else "Negative" if blob.sentiment.polarity < 0 else "Neutral"
+            st.metric("Sentiment", sentiment)
+
+        with col2:
+            st.subheader("OpenAI Advanced Analysis")
+            st.metric("Sentiment", openai_result['sentiment'])
+            st.metric("Confidence", f"{openai_result['confidence']:.2f}")
+            st.metric("Emotional Tone", openai_result['emotional_tone'])
+
+            st.write("Key Sentiment Drivers:")
+            for driver in openai_result['key_drivers']:
+                st.write(f"• {driver}")
+
+    except Exception as e:
+        # If OpenAI analysis fails, show only TextBlob analysis with a notification
+        st.warning(f"Advanced AI analysis unavailable: {str(e)}")
+
+        st.subheader("TextBlob Analysis")
         st.metric("Polarity", f"{blob.sentiment.polarity:.2f}")
         st.metric("Subjectivity", f"{blob.sentiment.subjectivity:.2f}")
         sentiment = "Positive" if blob.sentiment.polarity > 0 else "Negative" if blob.sentiment.polarity < 0 else "Neutral"
         st.metric("Sentiment", sentiment)
-
-    # OpenAI Analysis
-    with col2:
-        st.subheader("OpenAI Advanced Analysis")
-        with st.spinner("Analyzing sentiment with AI..."):
-            try:
-                openai_result = analyze_sentiment_openai(user_text)
-
-                st.metric("Sentiment", openai_result['sentiment'])
-                st.metric("Confidence", f"{openai_result['confidence']:.2f}")
-                st.metric("Emotional Tone", openai_result['emotional_tone'])
-
-                st.write("Key Sentiment Drivers:")
-                for driver in openai_result['key_drivers']:
-                    st.write(f"• {driver}")
-            except Exception as e:
-                st.error(f"Error in AI analysis: {str(e)}")
 
 # Reputation Score
 st.subheader("Reputation Score")

@@ -11,6 +11,9 @@ def analyze_sentiment_openai(text):
     Analyze sentiment using OpenAI's API for more accurate results.
     Returns a dictionary with detailed sentiment analysis.
     """
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise Exception("OpenAI API key not configured")
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -31,14 +34,11 @@ def analyze_sentiment_openai(text):
             ],
             response_format={"type": "json_object"}
         )
-        
+
         # Parse the response JSON string into a dictionary
         result = response.choices[0].message.content
         return json.loads(result)
     except Exception as e:
-        return {
-            "sentiment": "neutral",
-            "confidence": 0.0,
-            "emotional_tone": "unknown",
-            "key_drivers": [f"Error in analysis: {str(e)}"]
-        }
+        if "insufficient_quota" in str(e):
+            raise Exception("OpenAI API quota exceeded - Using TextBlob analysis only")
+        raise Exception(f"OpenAI Analysis Error: {str(e)}")
