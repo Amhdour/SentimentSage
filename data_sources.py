@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 from web_scraper import process_urls
+from utils import analyze_sentiment
 
 def validate_data(df: pd.DataFrame) -> tuple[bool, str]:
     """
@@ -26,8 +27,6 @@ def validate_data(df: pd.DataFrame) -> tuple[bool, str]:
                 axis=1
             )
 
-        return True, ""
-
     # Check if text column exists
     if 'text' not in df.columns:
         available_columns = ', '.join(df.columns.tolist())
@@ -36,6 +35,17 @@ def validate_data(df: pd.DataFrame) -> tuple[bool, str]:
     # Check for empty text values
     if df['text'].isna().any():
         return False, "Found empty text values in the data"
+
+    # Perform sentiment analysis
+    sentiments = []
+    for text in df['text']:
+        sentiment_result = analyze_sentiment(text)
+        sentiments.append(sentiment_result)
+
+    # Add sentiment analysis results
+    df['sentiment'] = [s['sentiment'] for s in sentiments]
+    df['polarity'] = [s['polarity'] for s in sentiments]
+    df['subjectivity'] = [s['subjectivity'] for s in sentiments]
 
     return True, ""
 
