@@ -7,6 +7,7 @@ from utils import preprocess_text, calculate_reputation_score
 from sample_data import get_sample_data
 from openai_analyzer import analyze_sentiment_openai
 from nlp_analyzer import get_nlp_analysis
+from data_sources import load_data_source
 
 # Page configuration
 st.set_page_config(
@@ -26,18 +27,52 @@ st.markdown("""
 st.sidebar.header("Dashboard Controls")
 data_source = st.sidebar.radio(
     "Select Data Source",
-    ["Sample Data", "Upload Your Own"]
+    ["Sample Data", "Upload Your Own", "JSON Input"]
 )
 
 # Data loading
 if data_source == "Sample Data":
     df = get_sample_data()
-else:
-    uploaded_file = st.sidebar.file_uploader("Upload CSV file", type=['csv'])
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
+elif data_source == "JSON Input":
+    json_text = st.sidebar.text_area(
+        "Enter JSON data",
+        height=200,
+        help="Enter JSON data in the format: [{\"text\": \"your text here\", ...}, ...]"
+    )
+    if json_text:
+        try:
+            from io import StringIO
+            json_file = StringIO(json_text)
+            df, error = load_data_source(json_file, 'json')
+            if error:
+                st.sidebar.error(error)
+                st.stop()
+        except Exception as e:
+            st.sidebar.error(f"Error parsing JSON: {str(e)}")
+            st.stop()
     else:
-        st.info("Please upload a CSV file or select Sample Data")
+        st.info("Please enter JSON data or select another data source")
+        st.stop()
+else:
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload data file", 
+        type=['csv', 'xlsx', 'xls', 'json'],
+        help="Upload a file containing text data for analysis. Must include a 'text' column."
+    )
+
+    if uploaded_file is not None:
+        file_type = uploaded_file.name.split('.')[-1]
+        df, error = load_data_source(uploaded_file, file_type)
+
+        if error:
+            st.sidebar.error(error)
+            st.stop()
+
+        # Display data preview
+        st.sidebar.subheader("Data Preview")
+        st.sidebar.dataframe(df.head(3), use_container_width=True)
+    else:
+        st.info("Please upload a file or select Sample Data")
         st.stop()
 
 # Main dashboard
